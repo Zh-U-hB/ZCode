@@ -1,0 +1,17 @@
+{
+  "name": "@zcode/cowork-gateway",
+  "description": "Multi-user cowork gateway: auth, per-user server isolation, reverse proxy.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "tsx test/e2e-isolation.mts"
+  },
+  "devDependencies": {
+    "@zcode/client": "workspace:*",
+    "@zcode/rpc": "workspace:*",
+    "@zcode/services": "workspace:*"
+  }
+}

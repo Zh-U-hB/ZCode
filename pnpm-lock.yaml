@@ -622,6 +622,18 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2
 
+  packages/cowork-gateway:
+    devDependencies:
+      '@zcode/client':
+        specifier: workspace:*
+        version: link:../client
+      '@zcode/rpc':
+        specifier: workspace:*
+        version: link:../rpc
+      '@zcode/services':
+        specifier: workspace:*
+        version: link:../services
+
   packages/desktop:
     dependencies:
       '@arms/rum-electron':
@@ -16172,11 +16184,11 @@ snapshots:
 
   lodash.merge@4.6.2: {}
 
+  lodash.pickby@4.6.0: {}
+
   lodash.uniqby@4.7.0: {}
 
   lodash@4.18.1: {}
-
-  lodash.pickby@4.6.0: {}
 
   log-symbols@4.1.0:
     dependencies:

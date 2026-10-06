@@ -3,6 +3,7 @@ import type { GitBranchComparison, GitFileChange, GitChangeSectionId } from "@zc
 import { isPathInWorkspaceScope, normalizeGitPath, toWorkspaceRelativeGitPath } from "./config.js";
 import { filterCommitMessageFilesByCurrentSession } from "./commitMessageFileScope.js";
 import type { IGitService } from "./git.js";
+import { guardServicePathParams } from "../fileAccessRoots.js";
 import type { GitCommitMessageGenerator } from "./gitCommitMessageGenerator.js";
 import {
   createGitCliRepo,
@@ -173,7 +174,7 @@ export function createGitService(options?: {
 }): IGitService {
   const repo = options?.repo ?? createGitCliRepo();
 
-  return {
+  const service: IGitService = {
     async getRepositorySummary(params) {
       const status = await repo.getStatus(params.workspacePath);
       return status.summary;
@@ -354,4 +355,6 @@ export function createGitService(options?: {
       };
     },
   };
+  // 多租户宿主设置 ZCODE_FILE_ACCESS_ROOTS 后，git 操作的 workspacePath 亦受白名单约束。
+  return guardServicePathParams(service, ["workspacePath"], "git");
 }

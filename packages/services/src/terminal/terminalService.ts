@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { homedir, release } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { Emitter, type Event } from "@zcode/rpc";
+import { guardServicePathParams } from "../fileAccessRoots.js";
 import type { IPty } from "node-pty";
 import type { ISettingService } from "../setting/setting.js";
 import type { ITerminalService, TerminalWindowsPtyInfo } from "./terminal.js";
@@ -442,5 +443,6 @@ export function createTerminalService(dependencies: {
     },
   };
 
-  return service;
+  // 多租户宿主设置 ZCODE_FILE_ACCESS_ROOTS 后，终端初始 cwd 亦受白名单约束。
+  return guardServicePathParams(service, ["cwd"], "terminal");
 }

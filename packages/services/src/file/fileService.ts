@@ -13,6 +13,7 @@ import type {
 import { getMediaPreviewFormat } from "@zcode/shared";
 import { packWorkspaceFileEntries } from "@zcode/shared/workspaceFileEntriesCodec";
 import type { IFileService, WorkspaceFileSearchParams } from "./file.js";
+import { guardServicePathParams } from "../fileAccessRoots.js";
 import { WORKSPACE_FILE_SEARCH_DISPLAY_CAP } from "@zcode/shared/workspaceFileSearch";
 import { buildHostFileSearchCandidates, searchHostFileCandidates } from "./workspaceFileSearch.js";
 import {
@@ -367,7 +368,7 @@ export function createFileService(options: CreateFileServiceOptions = {}): IFile
     }
   };
 
-  return {
+  const service: IFileService = {
     async readdir(params: { path: string; includeHidden?: boolean }): Promise<FileEntry[]> {
       const entries = await readdir(params.path, { withFileTypes: true });
       const visibleEntries = await Promise.all(
@@ -639,4 +640,6 @@ export function createFileService(options: CreateFileServiceOptions = {}): IFile
       await writeWorkspaceFileSearchIgnore(params.rootPath, params.content);
     },
   };
+  // 多租户宿主设置 ZCODE_FILE_ACCESS_ROOTS 后，携带路径的服务调用统一经白名单拦截。
+  return guardServicePathParams(service, ["path", "rootPath", "paths"], "file");
 }
