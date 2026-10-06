@@ -90,3 +90,24 @@ export function toFileUrl(path: string): string {
 
   return encodeUriPathForFileUrl(normalizedPath);
 }
+
+/** toFileUrl 的对偶：file:// URL 还原为文件系统路径；UNC 与非法输入返回 null。 */
+export function fileUrlToPath(fileUrl: string): string | null {
+  if (!fileUrl.startsWith("file:")) {
+    return null;
+  }
+  try {
+    const url = new URL(fileUrl);
+    if (url.protocol !== "file:" || url.host) {
+      // url.host 非空表示 UNC（file://server/share），Web 预览端点不支持。
+      return null;
+    }
+    let path = decodeURIComponent(url.pathname);
+    if (/^\/[A-Za-z]:/.test(path)) {
+      path = path.slice(1);
+    }
+    return path || null;
+  } catch {
+    return null;
+  }
+}

@@ -26,6 +26,7 @@ import {
   IBotsService,
   IProviderProvisioningTargetService,
 } from "@zcode/services";
+import { assertPathWithinAccessRoots } from "@zcode/services/node";
 import {
   botProviders,
   formatLogPrefix,
@@ -186,6 +187,24 @@ function createServerInfo(options: HttpServerOptions): ServerRemoteInfo {
 
 const zcodeLiteTokenCookieName = "zcode_lite_token";
 
+/** 预览端点允许的 mime 白名单与单文件大小上限。 */
+const previewMimeTypes: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".htm": "text/html; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+  ".txt": "text/plain; charset=utf-8",
+  ".md": "text/plain; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+};
+
+const PREVIEW_MAX_BYTES = 20 * 1024 * 1024;
+
 const staticMimeTypes: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
   ".gif": "image/gif",
@@ -319,6 +338,46 @@ export function createHttpServer(
 
   app.get("/api/server-info", (c) => c.json(createServerInfo(options)));
   app.post("/api/rpc-host-capability", (c) => c.json(hostCapabilities.issue()));
+
+  // Web 端本地产物预览：读取白名单根内的文件并以沙箱响应返回，
+  // 让 agent 生成的 html/图片等 file:// 资产在浏览器里可打开。
+  app.get("/api/file-preview", async (c) => {
+    const path = c.req.query("path")?.trim();
+    if (!path) {
+      return c.json({ error: "Missing path" }, 400);
+    }
+    const contentType = previewMimeTypes[extname(path).toLowerCase()];
+    if (!contentType) {
+      return c.json({ error: "Unsupported preview type" }, 415);
+    }
+    try {
+      assertPathWithinAccessRoots(path, "file-preview");
+    } catch {
+      return c.json({ error: "Path out of allowed roots" }, 403);
+    }
+    try {
+      const fileStat = await stat(path);
+      if (!fileStat.isFile()) {
+        return c.json({ error: "Not a file" }, 404);
+      }
+      if (fileStat.size > PREVIEW_MAX_BYTES) {
+        return c.json({ error: "File too large to preview" }, 413);
+      }
+      const content = await readFile(path);
+      return c.body(content, 200, {
+        "Content-Type": contentType,
+        // sandbox 将预览内容（尤其 HTML 内联脚本）隔离在 opaque origin，
+        // 不能读取平台会话 Cookie、Storage，也无法发起同源特权请求。
+        "Content-Security-Policy":
+          "sandbox allow-scripts allow-forms allow-popups allow-modals",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": "inline",
+        "Cache-Control": "no-store",
+      });
+    } catch {
+      return c.json({ error: "File not found" }, 404);
+    }
+  });
 
   // 普通 `/ws` 永远是 terminal-client；浏览器/任意客户端设置旧 mode header
   // 都不能再把自己提升为 trusted host。

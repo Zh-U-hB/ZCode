@@ -73,10 +73,16 @@ pnpm cowork:test
 ```
 
 - `test/e2e-isolation.mts` — 双租户 RPC 级数据隔离（10 项：含跨租户读、列宿主目录、读系统文件）
-- `test/adv-security.mts` — 对抗性安全（14 项：JWT 伪造、路径绕过变种、symlink 逃逸、端口直连、无认证 WS、跨站 Origin、超大 body）
+- `test/adv-security.mts` — 对抗性安全（19 项：JWT 伪造、路径绕过变种、symlink 逃逸、端口直连、无认证 WS、跨站 Origin、超大 body、file-preview 越权）
 - `test/invite-code.mts` — 邀请码注册门槛（6 项：无码/错码/大小写/格式/对码/重复用户名）
 
-当前结果：**30/30 PASS，0 LEAK**。
+当前结果：**35/35 PASS，0 LEAK**。
+
+## Web 端 Side Pane 与本地产物预览
+
+- **文件/图片/PDF/diff 预览、Git 审查、终端、子代理、工作流面板**：Web 端原生可用（走 file/git/terminal RPC），命令面板（Ctrl+K）里"切换终端"等命令即入口。
+- **本地产物预览**：Agent 生成的 HTML/图片等 `file://` 资产在浏览器里无法直接打开。server 新增 `GET /api/file-preview?path=...`：token 鉴权 + 路径白名单 + mime 白名单 + 20MB 上限；响应带 `Content-Security-Policy: sandbox allow-scripts ...`，预览内容运行在 opaque origin，无法读取平台会话 Cookie/Storage 或发起同源特权请求。前端 `useAppPanels` 在无内嵌浏览器能力的环境下把 `file://` 自动重写到该端点。
+- **嵌入式浏览器预览**（Agent 受控 webview）：依赖 Electron `<webview>` + 主进程 CDP，Web 形态暂不可用（入口已隐藏、agent 侧优雅降级为 `backend_unavailable`）。服务化路径见上游 `browserControlExecutor` 注入点。
 
 ## 安全边界与已知限制（必读）
 

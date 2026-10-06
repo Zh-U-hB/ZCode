@@ -23,6 +23,10 @@ export {
 
 export { createFileService } from "./file/fileService.js";
 export {
+  assertPathWithinAccessRoots,
+  isFileAccessRestricted,
+} from "./fileAccessRoots.js";
+export {
   attributeHostProcessTree,
   createProcessResourceSampler,
   createProcessResourceTableReader,

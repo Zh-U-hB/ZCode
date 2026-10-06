@@ -255,6 +255,37 @@ async function main(): Promise<void> {
     record("symlink/junction 逃逸被拒（跳过）", "PASS");
   }
 
+  // ---- 组8：file-preview 预览端点 ----
+  {
+    console.log("[step] group8 begin");
+    const aliceId = await resolveAliceId(aliceCookie);
+    console.log("[step] aliceId ok");
+    const aliceWorkspace = join(homeDir, ".zcode-cowork", "users", aliceId, "workspace", "default");
+    const qs = (p: string) => `${GATEWAY}/api/file-preview?path=${encodeURIComponent(p)}`;
+    const own = await fetch(qs(join(aliceWorkspace, "innocent.txt")), {
+      headers: { cookie: aliceCookie },
+    });
+    console.log("[step] own fetch done", own.status);
+    record(
+      "预览端点：读自己工作区文件",
+      own.status === 200 ? "PASS" : "FAIL",
+    );
+    const cross = await fetch(
+      qs(join(homeDir, ".zcode-cowork", "users", "621d63cd-ba6c-4be0-94ca-142c48740828", "workspace", "default", "bob-secret.txt")),
+      { headers: { cookie: aliceCookie } },
+    );
+    record("预览端点：读他人工作区被拒", cross.status === 403 ? "PASS" : cross.status === 404 ? "LEAK" : "FAIL");
+    const sys = await fetch(qs("C:\\Windows\\win.ini"), { headers: { cookie: aliceCookie } });
+    record(
+      "预览端点：读系统文件被拒",
+      sys.status === 403 || sys.status === 415 ? "PASS" : "FAIL",
+    );
+    const anon = await fetch(qs(join(aliceWorkspace, "innocent.txt")));
+    record("预览端点：未认证被拒", anon.status === 401 ? "PASS" : "FAIL");
+    const exe = await fetch(qs("C:\\Windows\\System32\\cmd.exe"), { headers: { cookie: aliceCookie } });
+    record("预览端点：白名单外类型被拒", exe.status === 415 || exe.status === 403 ? "PASS" : "FAIL");
+  }
+
   const leaks = results.filter((r) => r.status === "LEAK").length;
   const fails = results.filter((r) => r.status === "FAIL").length;
   console.log(

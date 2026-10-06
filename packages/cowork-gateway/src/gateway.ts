@@ -71,13 +71,26 @@ async function readBodyJson(
 ): Promise<{ ok: true; value: unknown } | { ok: false; error: string }> {
   const chunks: Buffer[] = [];
   let total = 0;
+  let exceeded = false;
   for await (const chunk of req) {
     const buffer = chunk as Buffer;
     total += buffer.length;
     if (total > maxBytes) {
-      return { ok: false, error: "请求体过大" };
+      exceeded = true;
+      if (total > 8 * 1024 * 1024) {
+        // 恶意超大 body：继续消费只为保住 keep-alive 连接的正确性，
+        // 超过硬上限直接断连，由客户端承受后果。
+        req.destroy();
+        break;
+      }
+      continue;
     }
     chunks.push(buffer);
+  }
+  if (exceeded) {
+    // body 必须消费完整再响应，否则 Node 会销毁未读完的 keep-alive socket，
+    // 客户端连接池复用死连接时表现为下个请求 ECONNRESET。
+    return { ok: false, error: "请求体过大" };
   }
   if (chunks.length === 0) {
     return { ok: true, value: {} };

@@ -75,7 +75,7 @@ import {
 } from "@/lib/workspaceSidePane.js";
 import { isSidePaneTabVisibleForParent } from "@/lib/workspaceSidePane.js";
 import { logger } from "@/logger.js";
-import { getPathLeaf, joinFilePath, toFileUrl } from "@/lib/path.js";
+import { getPathLeaf, joinFilePath, toFileUrl, fileUrlToPath } from "@/lib/path.js";
 import { shouldOpenWorkflowArtifactInBrowser } from "@/lib/workflowArtifactOpen.js";
 import { useWhiteboardStore } from "@/store/whiteboardStore.js";
 import { useModelTrajectoryOpenBridge } from "@/hooks/useModelTrajectoryOpenBridge.js";
@@ -391,7 +391,20 @@ export function useAppPanels(options: {
         (sourceRemoteSessionId ?? "") === (workspaceRemoteSessionId ?? "") &&
         sourceSessionId === sidePaneOwnerIdRef.current;
       if (!supportsEmbeddedBrowser) {
-        // Web 端没有内置浏览器面板，这里退回浏览器新标签，至少保证外链是可访问的。
+        // Web 端没有内置浏览器面板：http(s) 外链退回浏览器新标签；
+        // file:// 是本地产物（agent 生成的页面等），改走服务端沙箱预览端点，
+        // 直接 window.open(file://) 在浏览器里永远打不开。
+        if (payload.url.startsWith("file:")) {
+          const previewPath = fileUrlToPath(payload.url);
+          if (previewPath) {
+            window.open(
+              `/api/file-preview?path=${encodeURIComponent(previewPath)}`,
+              "_blank",
+              "noopener,noreferrer",
+            );
+            return;
+          }
+        }
         window.open(payload.url, "_blank", "noopener,noreferrer");
         return;
       }
