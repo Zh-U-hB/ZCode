@@ -7,7 +7,7 @@
   "scripts": {
     "dev:web": "concurrently -k -n server,web -c blue,green \"pnpm --filter @zcode/server dev\" \"pnpm --filter @zcode/web dev\"",
     "cowork": "tsx packages/cowork-gateway/src/main.ts",
-    "cowork:test": "tsx packages/cowork-gateway/test/e2e-isolation.mts && tsx packages/cowork-gateway/test/adv-security.mts && tsx packages/cowork-gateway/test/invite-code.mts",
+    "cowork:test": "tsx packages/cowork-gateway/test/e2e-isolation.mts && tsx packages/cowork-gateway/test/adv-security.mts && tsx packages/cowork-gateway/test/invite-code.mts && tsx packages/cowork-gateway/test/attachment-paths.mts",
     "dev:desktop": "pnpm run dev:desktop:prod",
     "dev:desktop:test": "node scripts/dev-desktop-env.mjs test",
     "dev:desktop:prod": "node scripts/dev-desktop-env.mjs production",

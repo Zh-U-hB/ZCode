@@ -151,7 +151,11 @@ export class UserServerManager {
     // 派生的 .zcode 路径（设置、hooks、插件、命令、遥测）全部落在用户私有目录，租户互不可见。
     const userHome = join(userRoot, "home");
     const dataDir = userHome;
-    const workspaceDir = join(userRoot, "workspace", "default");
+    // 必须与 services 的 ensureConversationWorkspace（{dataBaseDir}/.zcode/workspace/default）
+    // 指向同一路径：web 启动默认打开 ZCODE_SERVER_WORKSPACE，而聊天任务实际写在会话
+    // 工作区；两者不一致时 tasks-index 按 workspace_key 精确匹配会查不到历史任务，
+    // 用户重新登录后会话列表为空。数据仍在盘上，只是查询键对不上。
+    const workspaceDir = join(userHome, ".zcode", "workspace", "default");
     const logsDir = join(this.config.dataRoot, "logs", "users");
     for (const dir of [userRoot, userHome, workspaceDir, logsDir]) {
       mkdirSync(dir, { recursive: true });

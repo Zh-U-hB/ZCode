@@ -1,4 +1,5 @@
 import { isAbsolute, join, resolve } from "node:path";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import {
   createInMemorySessionEventStore,
   createNodeToolArtifactStore,
@@ -107,6 +108,18 @@ import {
   resolveStartupPlugins,
   startAppStartup,
 } from "./startup-marks.js";
+
+// 上传落盘路径段净化：与 adapters/storage 的 sanitizePathSegment 同语义，
+// 保留 [a-zA-Z0-9._-]，其余替换为下划线，限长 120。
+function sanitizeUploadPathSegment(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "unknown";
+}
+
+// 原始文件名净化：额外去掉路径分隔符与控制字符（防目录穿越），空名兜底 upload.bin。
+function sanitizeUploadFileName(value: string): string {
+  const cleaned = value.replace(/[\\/\u0000-\u001f]/g, "_").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
+  return cleaned || "upload.bin";
+}
 
 function decodePromptAttachmentDataUrl(
   content: string,
@@ -1026,7 +1039,46 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
             })
             .catch(() => undefined);
         }
-        return { ref: artifact.uri };
+        // web 端上传没有本地路径可引用：非媒体附件在 64KiB 以上会降级成纯元数据
+        // 占位符，模型拿不到内容也拿不到路径。这里把原始二进制额外落到
+        // {storageRoot}/cli/uploads/<sessionId>/ 下（多租户部署中位于用户 home 的
+        // 文件访问根范围内），并把真实路径回传给引用映射层，使 agent 能像 desktop
+        // localPath 分支一样用文件工具直接读取。落盘失败不阻断发送（data URL 仍在）。
+        let filePath: string | undefined;
+        try {
+          const uploadDir = join(cliStorageRoot, "uploads", sanitizeUploadPathSegment(sessionId));
+          const safeName = sanitizeUploadFileName(input.fileName);
+          const uploadPath = join(uploadDir, `${sanitizeUploadPathSegment(artifact.id)}-${safeName}`);
+          await mkdir(uploadDir, { recursive: true });
+          await writeFile(uploadPath, Buffer.from(input.bytes));
+          filePath = uploadPath;
+        } catch {
+          filePath = undefined;
+        }
+        return { ref: artifact.uri, ...(filePath ? { filePath } : {}) };
+      },
+      resolvePromptAttachmentFilePath: async (ref) => {
+        // zcode-artifact://<sessionId>/<artifactId> → {cli}/uploads/<sessionId>/<artifactId>-*
+        // 无状态反查（只依赖文件系统），进程重启后仍可解析；解析失败按无路径处理，
+        // 引用映射层会回落到旧的 inline/元数据降级逻辑。
+        try {
+          const match = /^zcode-artifact:\/\/([^/]+)\/([^/]+)$/.exec(ref.trim());
+          if (!match) return null;
+          const uploadDir = join(
+            cliStorageRoot,
+            "uploads",
+            sanitizeUploadPathSegment(decodeURIComponent(match[1] ?? "")),
+          );
+          const artifactId = sanitizeUploadPathSegment(decodeURIComponent(match[2] ?? ""));
+          const entries = await readdir(uploadDir);
+          const hit = entries.find((name) => name.startsWith(`${artifactId}-`));
+          if (!hit) return null;
+          const hitPath = join(uploadDir, hit);
+          const hitStat = await stat(hitPath);
+          return hitStat.isFile() ? hitPath : null;
+        } catch {
+          return null;
+        }
       },
       readPromptAttachment: async (input) => {
         const { ref, mediaType } = await resolvePromptAttachment(input);

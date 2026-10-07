@@ -240,7 +240,7 @@ async function main(): Promise<void> {
   // ---- 组7：symlink 逃逸 ----
   try {
     const aliceId = await resolveAliceId(aliceCookie);
-    const workDir = join(homeDir, ".zcode-cowork", "users", aliceId, "workspace", "default");
+    const workDir = join(homeDir, ".zcode-cowork", "users", aliceId, "home", ".zcode", "workspace", "default");
     mkdirSync(workDir, { recursive: true });
     writeFileSync(join(workDir, "innocent.txt"), "innocent");
     const linkPath = join(workDir, "escape-link");
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
     console.log("[step] group8 begin");
     const aliceId = await resolveAliceId(aliceCookie);
     console.log("[step] aliceId ok");
-    const aliceWorkspace = join(homeDir, ".zcode-cowork", "users", aliceId, "workspace", "default");
+    const aliceWorkspace = join(homeDir, ".zcode-cowork", "users", aliceId, "home", ".zcode", "workspace", "default");
     const qs = (p: string) => `${GATEWAY}/api/file-preview?path=${encodeURIComponent(p)}`;
     const own = await fetch(qs(join(aliceWorkspace, "innocent.txt")), {
       headers: { cookie: aliceCookie },
@@ -271,7 +271,7 @@ async function main(): Promise<void> {
       own.status === 200 ? "PASS" : "FAIL",
     );
     const cross = await fetch(
-      qs(join(homeDir, ".zcode-cowork", "users", "621d63cd-ba6c-4be0-94ca-142c48740828", "workspace", "default", "bob-secret.txt")),
+      qs(join(homeDir, ".zcode-cowork", "users", "621d63cd-ba6c-4be0-94ca-142c48740828", "home", ".zcode", "workspace", "default", "bob-secret.txt")),
       { headers: { cookie: aliceCookie } },
     );
     record("预览端点：读他人工作区被拒", cross.status === 403 ? "PASS" : cross.status === 404 ? "LEAK" : "FAIL");

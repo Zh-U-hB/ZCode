@@ -341,7 +341,12 @@ export interface ZCodeApp {
     fileName: string;
     mime: string;
     bytes: Uint8Array;
-  }): Promise<{ ref: string }>;
+  }): Promise<{ ref: string; filePath?: string }>;
+  /**
+   * web 上传附件的真实落盘路径反查（{cli}/uploads/<sessionId>/<artifactId>-*）。
+   * 无路径可解析时返回 null，引用映射层回落到 inline/元数据降级。
+   */
+  resolvePromptAttachmentFilePath?(ref: string): Promise<string | null>;
   /** 已发送 image/video 预览：在拥有 session 的 runtime 内读取 artifact 或实际路径。 */
   readPromptAttachment(input: {
     ref: string;

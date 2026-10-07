@@ -138,6 +138,19 @@ async function main(): Promise<void> {
   writeFileSync(join(aliceWorkspace, "alice-secret.txt"), "ALICE-SECRET-42");
   record("alice 会话工作区创建", "PASS", aliceWorkspace);
 
+  // 回归：web 启动默认工作区（/api/server-info workspaces[0]，来自 ZCODE_SERVER_WORKSPACE）
+  // 必须与 ensureConversationWorkspace 返回的会话工作区同路径；不一致时 tasks-index 按
+  // workspace_key 精确匹配，历史任务在新开的工作区下永远查不到（表现为"会话历史丢失"）。
+  const serverInfo = (await (await fetch(`${GATEWAY}/api/server-info`, {
+    headers: { cookie: aliceCookie },
+  })).json()) as { workspaces?: Array<{ path: string }> };
+  const bootstrapWorkspace = serverInfo?.workspaces?.[0]?.path;
+  record(
+    "启动工作区与会话工作区一致",
+    bootstrapWorkspace && bootstrapWorkspace === aliceWorkspace ? "PASS" : "FAIL",
+    bootstrapWorkspace ? `${bootstrapWorkspace} vs ${aliceWorkspace}` : "server-info 未返回 workspaces",
+  );
+
   const bobWorkspaceResult = (await bob.call("ensureConversationWorkspace", [{}])) as {
     path: string;
   };
