@@ -76,7 +76,7 @@ interface BareFileChannel {
   call(command: string, args: unknown[]): Promise<unknown>;
 }
 
-async function connectFileChannel(cookie: string): Promise<BareFileChannel> {
+async function connectChannel(cookie: string, channelName: string): Promise<BareFileChannel> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`${GATEWAY.replace("http", "ws")}/ws`, {
       headers: { cookie },
@@ -84,9 +84,13 @@ async function connectFileChannel(cookie: string): Promise<BareFileChannel> {
     ws.once("error", (error) => reject(error));
     ws.once("open", () => {
       const client = new ChannelClient(new SocketProtocol(wrapNodeWebSocket(ws)));
-      resolve(client.getChannel("file") as BareFileChannel);
+      resolve(client.getChannel(channelName) as BareFileChannel);
     });
   });
+}
+
+async function connectFileChannel(cookie: string): Promise<BareFileChannel> {
+  return connectChannel(cookie, "file");
 }
 
 async function tryReadText(
@@ -150,6 +154,36 @@ async function main(): Promise<void> {
     bootstrapWorkspace && bootstrapWorkspace === aliceWorkspace ? "PASS" : "FAIL",
     bootstrapWorkspace ? `${bootstrapWorkspace} vs ${aliceWorkspace}` : "server-info 未返回 workspaces",
   );
+
+  // 回归：web 侧栏任务列表经 window-controller 通道聚合读取（useGlobalTaskList）。
+  // 该服务原本只在 Electron 桌面 Host 装配；headless 用户 server 未注册时浏览器端
+  // 查询全部静默失败，表现为侧栏永远"还没有任务"。这里直接调通道断言它可用且按
+  // workspace scope 隔离返回（alice 查询自己的会话工作区不应报错、不应跨出 scope）。
+  {
+    const controller = await connectChannel(aliceCookie, "window-controller");
+    try {
+      const listResult = (await controller.call("listTaskList", [
+        {
+          kind: "active",
+          workspaceScopes: [{ workspacePath: aliceWorkspace }],
+          sortBy: "updated",
+        },
+      ])) as { items?: unknown[]; total?: number };
+      record(
+        "window-controller 侧栏任务通道可用",
+        Array.isArray(listResult?.items) && typeof listResult?.total === "number" && listResult.total === 0
+          ? "PASS"
+          : "FAIL",
+        JSON.stringify(listResult).slice(0, 120),
+      );
+    } catch (error) {
+      record(
+        "window-controller 侧栏任务通道可用",
+        "FAIL",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
 
   const bobWorkspaceResult = (await bob.call("ensureConversationWorkspace", [{}])) as {
     path: string;

@@ -132,6 +132,8 @@ export type {
   WindowHostControllerTaskListItem,
   WindowHostControllerTaskListResult,
 } from "./window-controller/windowController.js";
+// Window Host Controller runtime：桌面 Host 与 headless HTTP server 共用的本地聚合权威。
+export { createWindowHostControllerRuntime } from "./window-controller/windowHostControllerService.js";
 
 // ZCode agent service — IZCodeAgentService is both a type (interface) and value (descriptor)
 export {

@@ -8,15 +8,19 @@ import type {
 } from "@zcode/shared/zcode-protocol-v4";
 import { matchesTaskListMembershipKind } from "@zcode/shared/zcode-protocol-v4";
 import type {
-  IWindowControllerService,
   IZCodeAgentService,
-  IZCodeTaskService,
+} from "../zcode-agent/zcodeAgent.js";
+import type { IZCodeTaskService } from "../session/zcodeTaskService.js";
+import type {
+  ZCodeTaskListQuery,
+  ZCodeTaskListWorkspaceScope,
+} from "../session/zcodeTaskListTypes.js";
+import type {
+  IWindowControllerService,
   WindowHostControllerFrame,
   WindowHostControllerTaskListItem,
   WindowHostControllerTaskListResult,
-  ZCodeTaskListQuery,
-  ZCodeTaskListWorkspaceScope,
-} from "@zcode/services";
+} from "./windowController.js";
 import {
   createWindowHostControllerProjection,
   type WindowHostControllerMutation,
