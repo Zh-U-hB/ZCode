@@ -1679,7 +1679,10 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
               canOpenLocalFileManager={isDesktop}
               activePreviewPath={activePreviewPath}
               onClose={() => setIsFileTreeOpen(false)}
-              onOpenBrowserUrl={isDesktop ? onOpenBrowserUrl : undefined}
+              onOpenBrowserUrl={onOpenBrowserUrl}
+              // Web 没有嵌入式浏览器面板：HTML 单击直接走 onOpenBrowserUrl
+              // （App 层会改写到服务端沙箱预览新标签），桌面保持源码查看器交互。
+              openHtmlFilesInBrowserOnActivate={!isDesktop && Boolean(onOpenBrowserUrl)}
               onOpenPreview={(source) => {
                 // 文件树可以查看非当前 workspace 的文件。
                 // 预览 source 携带 workspace 作用域，PreviewPane 才能用正确 host 读取远程文件；

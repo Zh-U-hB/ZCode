@@ -29,7 +29,11 @@ import {
   resolveConversationShareCodeFromPath,
 } from "./share/conversationShareRoute.js";
 import type { IPlatformService, RemoteTarget, ServerRemoteInfo } from "@zcode/shared";
+import { fileUrlToPath } from "@zcode/ui/lib/path";
 import { WEB_DEFAULT_THEME, resolveWebInitialTheme } from "./webThemeSeed.js";
+
+/** 服务端 /api/file-preview 预览端点的扩展名白名单（http.ts previewMimeTypes）。 */
+const WEB_PREVIEWABLE_FILE_RE = /\.(?:html?|svg|png|jpe?g|gif|webp|pdf|txt|md|css)$/i;
 
 function resolveWebThemePreference(defaultTheme: Theme = WEB_DEFAULT_THEME): Theme {
   const saved = localStorage.getItem("zcode-theme");
@@ -232,6 +236,19 @@ function createWebPlatform(): IPlatformService {
         skippedCount: 0,
       }),
     openExternal: (url) => {
+      // file:// 是 agent 生成的本地产物（HTML 页面等）；浏览器里 window.open(file://)
+      // 永远打不开。改写到服务端沙箱预览端点，与 App 层 handleOpenBrowserUrl 的兜底同款。
+      if (url.startsWith("file:")) {
+        const previewPath = fileUrlToPath(url);
+        if (previewPath) {
+          window.open(
+            `/api/file-preview?path=${encodeURIComponent(previewPath)}`,
+            "_blank",
+            "noopener,noreferrer",
+          );
+          return;
+        }
+      }
       window.open(url, "_blank", "noopener,noreferrer");
     },
     openFeedback: async () => {
@@ -255,7 +272,19 @@ function createWebPlatform(): IPlatformService {
     },
     openInFileManager: () =>
       Promise.resolve({ success: false, error: "Not supported in web mode" }),
-    openExternalFile: () => Promise.resolve({ success: false, error: "Not supported in web mode" }),
+    // 聊天预览卡片等入口对本地 HTML 产物会走 openExternalFile；web 没有系统默认
+    // 应用，把预览端点白名单内的文件改写到 /api/file-preview 新标签打开。
+    openExternalFile: (path) => {
+      if (WEB_PREVIEWABLE_FILE_RE.test(path)) {
+        window.open(
+          `/api/file-preview?path=${encodeURIComponent(path)}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+        return Promise.resolve({ success: true });
+      }
+      return Promise.resolve({ success: false, error: "Not supported in web mode" });
+    },
     registerOAuthState: (_payload) => {},
     onOAuthCallback: () => () => {},
     onPaymentCallback: () => () => {},

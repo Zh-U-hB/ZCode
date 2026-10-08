@@ -15,6 +15,12 @@ export interface WorkspaceFileTreeProps {
   onClose: () => void;
   onOpenBrowserUrl?: (url: string) => void;
   onOpenPreview?: (source: CodeViewerSource) => void;
+  /**
+   * 激活（单击/回车）HTML 文件时改走 onOpenBrowserUrl 而不是源码查看器。
+   * Web 无嵌入式浏览器面板：App 层会把 file:// 改写成服务端沙箱预览新标签。
+   * 桌面端保持既有交互（源码查看器 + 右键「在浏览器中打开」嵌入面板）。
+   */
+  openHtmlFilesInBrowserOnActivate?: boolean;
 }
 
 export interface WorkspaceFileTreeWatcherRegistration {

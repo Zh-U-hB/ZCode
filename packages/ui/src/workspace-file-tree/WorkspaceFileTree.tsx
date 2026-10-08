@@ -51,7 +51,7 @@ import {
 import { getPathLeaf } from "@/lib/path.js";
 import { logger } from "@/logger.js";
 import { WORKSPACE_FILE_TREE_VIRTUAL_ROW_HEIGHT_PX } from "@/workspace-file-tree/constants.js";
-import { getFileManagerLabel } from "@/workspace-file-tree/helpers.js";
+import { getFileManagerLabel, createWorkspaceFileTreeHtmlBrowserUrl } from "@/workspace-file-tree/helpers.js";
 import { useInstalledFileTreeEditors } from "@/workspace-file-tree/useInstalledFileTreeEditors.js";
 import { useWorkspaceOpenInEditorTarget } from "@/hooks/useWorkspaceOpenInEditorTarget.js";
 import {
@@ -97,6 +97,7 @@ export function WorkspaceFileTree({
   onClose,
   onOpenBrowserUrl,
   onOpenPreview,
+  openHtmlFilesInBrowserOnActivate = false,
 }: WorkspaceFileTreeProps) {
   const { intl } = useZCodeIntl();
   const platform = usePlatform();
@@ -551,9 +552,22 @@ export function WorkspaceFileTree({
         // 即使未来有其它入口直接调用预览，也要在父级兜底阻止打开。
         return;
       }
+      if (openHtmlFilesInBrowserOnActivate && onOpenBrowserUrl) {
+        const browserUrl = createWorkspaceFileTreeHtmlBrowserUrl(row);
+        if (browserUrl) {
+          onOpenBrowserUrl(browserUrl);
+          return;
+        }
+      }
       onOpenPreview?.(createCodeViewerSourceForWorkspaceFile(row.path));
     },
-    [handleDirectoryAction, onOpenPreview, treeData.gitStatusByPath],
+    [
+      handleDirectoryAction,
+      onOpenBrowserUrl,
+      onOpenPreview,
+      openHtmlFilesInBrowserOnActivate,
+      treeData.gitStatusByPath,
+    ],
   );
   const handleRowKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>, row: WorkspaceFileTreeRow) => {
