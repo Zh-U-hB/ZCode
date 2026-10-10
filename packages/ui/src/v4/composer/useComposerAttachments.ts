@@ -7,6 +7,7 @@ import { WORKSPACE_FILE_DRAG_MIME } from "@/lib/workspaceFileDrag.js";
 import {
   MAX_CHAT_ATTACHMENTS,
   MissingInlinePdfContentError,
+  OversizedInlineFileAttachmentError,
   OversizedInlinePdfAttachmentError,
   OversizedInlineVideoAttachmentError,
   createChatComposerAttachment,
@@ -155,6 +156,7 @@ function isTransientAttachmentUploadError(error: unknown): boolean {
   if (isAbortError(error)) return false;
   if (error instanceof OversizedInlineVideoAttachmentError) return false;
   if (error instanceof OversizedInlinePdfAttachmentError) return false;
+  if (error instanceof OversizedInlineFileAttachmentError) return false;
   if (error instanceof MissingInlinePdfContentError) return false;
   if (
     error instanceof Error &&
@@ -419,6 +421,15 @@ export function useComposerAttachments(
                     maxSize: formatAttachmentSize(error.maxSizeBytes),
                   },
                 )
+              : error instanceof OversizedInlineFileAttachmentError
+                ? intl.formatMessage(
+                    { id: "chat.attachments.oversizedInlineFile" },
+                    {
+                      filename: error.filename,
+                      size: formatAttachmentSize(error.sizeBytes),
+                      maxSize: formatAttachmentSize(error.maxSizeBytes),
+                    },
+                  )
               : error instanceof MissingInlinePdfContentError
                 ? intl.formatMessage(
                     { id: "chat.attachments.missingInlinePdfContent" },

@@ -7,6 +7,7 @@ import {
 } from "@zcode/shared";
 import { PROTOCOL_V4_LIMITS } from "@zcode/shared/zcode-protocol-v4";
 import {
+  OversizedInlineFileAttachmentError,
   OversizedInlineImageAttachmentError,
   OversizedInlinePdfAttachmentError,
   OversizedInlineVideoAttachmentError,
@@ -22,6 +23,7 @@ import {
 export {
   MissingInlineImageContentError,
   MissingInlinePdfContentError,
+  OversizedInlineFileAttachmentError,
   OversizedInlineImageAttachmentError,
   OversizedInlinePdfAttachmentError,
   OversizedInlineVideoAttachmentError,
@@ -254,6 +256,26 @@ export async function serializeChatComposerAttachment(
     attachment.file && isTextLikeAttachment(attachment)
       ? await readAttachmentText(attachment.file)
       : undefined;
+  // web 端二进制附件（xlsx/zip/办公文档等）没有 localPath、也不是文本类：
+  // 必须读出字节走 V4 分块上传，否则附件命令面无内容可发，直接报"附件缺少可读取内容"。
+  // 与 PDF 分支同款 20MiB 前置校验，避免在 V4 传输边界才报错。
+  if (textContent === undefined && attachment.file) {
+    if (attachment.sizeBytes > PROTOCOL_V4_LIMITS.attachmentMaxBytes) {
+      throw new OversizedInlineFileAttachmentError({
+        filename: attachment.filename,
+        maxSizeBytes: PROTOCOL_V4_LIMITS.attachmentMaxBytes,
+        sizeBytes: attachment.sizeBytes,
+      });
+    }
+    const dataBase64 = await readAttachmentBase64(attachment);
+    return {
+      kind: "file",
+      filename: attachment.filename,
+      mimeType,
+      sizeBytes: attachment.sizeBytes,
+      dataBase64,
+    };
+  }
   return {
     kind: "file",
     filename: attachment.filename,
